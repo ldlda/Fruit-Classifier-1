@@ -13,7 +13,7 @@ st.write("Upload an image of a fruit or vegetable, and we shall find out what it
 # --- 2. LOAD THE MODEL AND LABELS ---
 @st.cache_resource
 def load_my_model():
-    model = keras.models.load_model('mobilenet_model.keras')
+    model = keras.models.load_model('efficientnet_model.keras')
     return model
 
 @st.cache_data
