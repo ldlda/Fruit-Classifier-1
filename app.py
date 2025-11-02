@@ -1,5 +1,7 @@
+from ast import FunctionType
+from typing import Any, TypedDict
 import streamlit as st
-from tensorflow import keras  # type: ignore[import] # pylint: disable=E0611,W0611
+import keras  # type: ignore[import] # pylint: disable=E0611,W0611
 from PIL import Image
 import numpy as np
 import json
@@ -9,17 +11,19 @@ st.set_page_config(page_title="Fruit Classifier", layout="centered")
 st.title("Fruit Vegetable Classifier")
 st.write("Upload an image of a fruit or vegetable, and we shall find out what it is")
 
+class ModelConfig(TypedDict):
+    file: str
+    size: tuple[int, int]
+
 # --- 2. LOAD THE MODEL AND LABELS ---
-MODEL_CONFIG = {
+MODEL_CONFIG: dict[str, ModelConfig] = {
     "MobileNetV2": {
         "file": "mobilenet_model.keras",
         "size": (224, 224),
-        "preprocess": keras.applications.mobilenet_v2.preprocess_input,
     },
     "EfficientNetV2B0": {
         "file": "efficientnet_model.keras",
         "size": (224, 224),
-        "preprocess": keras.applications.efficientnet_v2.preprocess_input,
     },
 }
 
@@ -47,8 +51,9 @@ selected_model_cfg = MODEL_CONFIG[selected_model_name]
 
 
 @st.cache_resource
-def load_my_model(model_path: str):
+def load_my_model(model_path: str) -> Any:
     loaded_model = keras.models.load_model(model_path)
+    assert loaded_model is not None
     return loaded_model
 
 
@@ -61,12 +66,12 @@ def load_my_labels():
     return label_map
 
 
-model = load_my_model(selected_model_cfg["file"])
+model = load_my_model(model_path=selected_model_cfg["file"])
 labels = load_my_labels()
 
 
 # --- 3. PREPROCESSING FUNCTION ---
-def preprocess_image(img_pil, size, preprocess_fn):
+def preprocess_image(img_pil, size):
     # Ensure RGB
     img = img_pil.convert("RGB")
 
@@ -79,10 +84,7 @@ def preprocess_image(img_pil, size, preprocess_fn):
     # Add the "batch" dimension
     img_array = np.expand_dims(img_array, axis=0)
 
-    # Apply model-specific preprocessing
-    img_preprocessed = preprocess_fn(img_array)
-
-    return img_preprocessed
+    return img_array
 
 
 # --- 4. THE UPLOAD WIDGET ---
@@ -104,7 +106,6 @@ if uploaded_file is not None:
     processed_image = preprocess_image(
         image,
         size=selected_model_cfg["size"],
-        preprocess_fn=selected_model_cfg["preprocess"],
     )
 
     # 3. Make a prediction
