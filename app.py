@@ -16,38 +16,28 @@ class ModelConfig(TypedDict):
     size: tuple[int, int]
 
 # --- 2. LOAD THE MODEL AND LABELS ---
-
-# Import the specific preprocessing functions
-from keras.applications.mobilenet_v2 import preprocess_input as mobilenet_preprocess
-from keras.applications.efficientnet_v2 import preprocess_input as efficientnet_v2_preprocess
-
-# Define ModelConfig ONCE
-class ModelConfig(TypedDict):
-    file: str
-    size: tuple[int, int]
-    prep_func: FunctionType
-
-# Add the prep_func to your config
 MODEL_CONFIG: dict[str, ModelConfig] = {
     "MobileNetV2": {
         "file": "mobilenet_model.keras",
         "size": (224, 224),
-        "prep_func": mobilenet_preprocess,
     },
     "EfficientNetV2B0": {
         "file": "efficientnet_model.keras",
         "size": (224, 224),
-        "prep_func": efficientnet_v2_preprocess,
     },
 }
 
-# nitialize default model in session state
+# Choose which model to use
+# Initialize default model in session state
 if "model_choice" not in st.session_state:
     st.session_state["model_choice"] = "MobileNetV2"
 
-# Create the selectbox widget
 _options = list(MODEL_CONFIG.keys())
-_default_index = _options.index(st.session_state["model_choice"])
+_default_index = (
+    _options.index(st.session_state["model_choice"])
+    if st.session_state["model_choice"] in _options
+    else 0
+)
 
 st.selectbox(
     "Choose a model",
@@ -59,15 +49,18 @@ st.selectbox(
 selected_model_name = st.session_state["model_choice"]
 selected_model_cfg = MODEL_CONFIG[selected_model_name]
 
+
 @st.cache_resource
 def load_my_model(model_path: str) -> Any:
     loaded_model = keras.models.load_model(model_path)
     assert loaded_model is not None
     return loaded_model
 
+
 @st.cache_data
 def load_my_labels():
     with open("labels.json", "r", encoding="utf-8") as f:
+        # Load the dictionary and convert string keys back to integers
         labels_from_json = json.load(f)
         label_map = {int(k): v for k, v in labels_from_json.items()}
     return label_map
@@ -76,8 +69,9 @@ def load_my_labels():
 model = load_my_model(model_path=selected_model_cfg["file"])
 labels = load_my_labels()
 
+
 # --- 3. PREPROCESSING FUNCTION ---
-def preprocess_image(img_pil: Image.Image, size: tuple[int, int], prep_func: FunctionType):
+def preprocess_image(img_pil, size):
     # Ensure RGB
     img = img_pil.convert("RGB")
 
@@ -89,12 +83,8 @@ def preprocess_image(img_pil: Image.Image, size: tuple[int, int], prep_func: Fun
 
     # Add the "batch" dimension
     img_array = np.expand_dims(img_array, axis=0)
-    
-    # --- THIS IS THE FIX ---
-    # Apply the correct model-specific preprocessing
-    img_preprocessed = prep_func(img_array)
 
-    return img_preprocessed
+    return img_array
 
 
 # --- 4. THE UPLOAD WIDGET ---
@@ -116,7 +106,6 @@ if uploaded_file is not None:
     processed_image = preprocess_image(
         image,
         size=selected_model_cfg["size"],
-        prep_func=selected_model_cfg["prep_func"]
     )
 
     # 3. Make a prediction
