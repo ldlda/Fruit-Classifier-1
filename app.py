@@ -24,9 +24,25 @@ MODEL_CONFIG = {
 }
 
 # Choose which model to use
-selected_model_name = st.selectbox(
-    "Choose a model", options=list(MODEL_CONFIG.keys()), index=0
+# Initialize default model in session state
+if "model_choice" not in st.session_state:
+    st.session_state["model_choice"] = "MobileNetV2"
+
+_options = list(MODEL_CONFIG.keys())
+_default_index = (
+    _options.index(st.session_state["model_choice"])
+    if st.session_state["model_choice"] in _options
+    else 0
 )
+
+st.selectbox(
+    "Choose a model",
+    options=_options,
+    index=_default_index,
+    key="model_choice",
+)
+
+selected_model_name = st.session_state["model_choice"]
 selected_model_cfg = MODEL_CONFIG[selected_model_name]
 
 
