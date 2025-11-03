@@ -1,6 +1,6 @@
 from typing import Any, Callable, TypedDict
 import streamlit as st
-import keras  # type: ignore[import]  # New Keras: import directly; no TensorFlow import needed
+import keras
 from PIL import Image
 import numpy as np
 import json
@@ -15,7 +15,6 @@ st.write("Upload an image of a fruit or vegetable, and we shall find out what it
 class ModelConfig(TypedDict):
     file: str
     size: tuple[int, int]
-    # name for selecting correct preprocessing
     family: str
 
 
