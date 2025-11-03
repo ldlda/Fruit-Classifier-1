@@ -7,6 +7,7 @@ from PIL import Image
 # Import all our helper functions from utils.py
 from utils import (
     MODEL_CONFIG,
+    IMAGE_EXTENSIONS,
     get_preprocess_fn,
     load_my_labels,
     load_my_model,
@@ -64,7 +65,7 @@ labels = load_my_labels()
 # --- 4. THE UPLOAD WIDGET ---
 uploaded_file = st.file_uploader(
     "Choose an image...",
-    type=["jpg", "jpeg", "png", "webp", "bmp", "tif", "tiff", "gif", "ico"],
+    type=IMAGE_EXTENSIONS,
 )
 
 if uploaded_file is not None:

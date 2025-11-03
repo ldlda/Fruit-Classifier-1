@@ -4,6 +4,7 @@ from PIL import Image
 
 from utils import (
     MODEL_CONFIG,
+    IMAGE_EXTENSIONS,
     generate_gradcam_overlay,
     get_preprocess_fn,
     load_my_labels,
@@ -37,7 +38,7 @@ model = load_my_model(model_path_in=selected_model_cfg["file"])
 labels = load_my_labels()
 
 # --- UPLOAD AND PREDICT ---
-uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "jpeg", "png"])
+uploaded_file = st.file_uploader("Choose an image...", type=IMAGE_EXTENSIONS)
 
 if uploaded_file is not None:
     image = Image.open(uploaded_file)
