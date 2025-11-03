@@ -1,17 +1,24 @@
 import json
+
+# Note: streamlit_webrtc processors are duck-typed; no direct import required here.
 import typing
 from typing import Any, Callable, TypedDict
 
-import av
 import cv2
 import keras  # type: ignore[import]
 import numpy as np
 import numpy.typing as npt
 import streamlit as st
-import tensorflow as tf
+import tensorflow as tf  # Needed for Grad-CAM
 from keras.models import Model  # type: ignore[import]
 from PIL import Image
-from streamlit_webrtc import VideoProcessorBase
+
+"""
+No direct import of VideoProcessorBase is required; we use a duck-typed processor
+with recv/recv_queued methods and cast the factory where needed.
+"""
+
+# (no direct import from streamlit_webrtc needed here)
 
 
 # --- MODEL CONFIGURATION ---
@@ -197,56 +204,3 @@ def generate_gradcam_overlay(
     superimposed_img = cv2.addWeighted(heatmap_rgb, alpha, img_rgb, 1 - alpha, 0)
 
     return superimposed_img.astype(np.uint8, copy=False)
-
-
-# --- VIDEO PROCESSING CLASS ---
-
-
-class FruitClassifierProcessor(VideoProcessorBase):
-    def __init__(self) -> None:
-        super().__init__()
-        # Load the model and labels
-        self.model_name = st.session_state.get("model_choice", "MobileNetV2")
-        self.model_config = MODEL_CONFIG[self.model_name]
-        self.model = load_my_model(self.model_config["file"])
-        self.labels = load_my_labels()
-        self.preprocess_fn = get_preprocess_fn(self.model_config["family"])
-        self.size = self.model_config["size"]
-
-    def recv(self, frame: av.VideoFrame) -> av.VideoFrame:
-        # Convert the frame from the stream into a NumPy array
-        img = frame.to_ndarray(format="bgr24")
-
-        # --- PREPROCESS THE FRAME ---
-        img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-
-        img_resized = cv2.resize(img_rgb, self.size)
-
-        # Batch dimension
-        img_array = np.expand_dims(img_resized, axis=0)
-
-        # Apply model-specific preprocessing
-        img_preprocessed = self.preprocess_fn(img_array)
-
-        # --- PREDICT ---
-        predictions = self.model.predict(img_preprocessed)[0]
-        pred_index = np.argmax(predictions)
-        pred_label = self.labels[int(pred_index)]
-        confidence = np.max(predictions)
-
-        # --- DRAW ON FRAME ---
-        # Draw the prediction text on the *original* BGR frame
-        text = f"{pred_label} ({confidence:.2f})"
-
-        cv2.putText(
-            img,  # Draw on the original BGR frame
-            text,
-            (10, 30),  # Position
-            cv2.FONT_HERSHEY_SIMPLEX,
-            1,  # Font scale
-            (0, 255, 0),  # Color (Green)
-            2,  # Thickness
-        )
-
-        # Convert the modified BGR frame back to the stream format
-        return av.VideoFrame.from_ndarray(img, format="bgr24")
