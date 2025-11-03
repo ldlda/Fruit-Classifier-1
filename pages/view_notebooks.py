@@ -38,6 +38,7 @@ def render_notebook_to_html(path: str, _mtime: float) -> str:
     exporter = HTMLExporter()
     exporter.exclude_input = False
     exporter.exclude_output = False
+    exporter.theme = st.context.theme.type or "light"
     body, _resources = exporter.from_notebook_node(nb)
     return body
 

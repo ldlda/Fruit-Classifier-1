@@ -41,7 +41,7 @@ The application is run using Streamlit. The main entry point is `Home.py`.
 2. Run the command:
 
     ```pwsh
-    streamlit run Home.py
+    streamlit run app.py
     ```
 
 3. Your default web browser will automatically open to the application's URL.

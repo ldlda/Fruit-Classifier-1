@@ -1,4 +1,3 @@
-# app.py (This is your NEW main file)
 import streamlit as st
 
 st.set_page_config(page_title="Fruit Classifier - Home", layout="centered")
@@ -21,4 +20,14 @@ st.markdown(
 * **Real Time Demo:** See live predictions from the models.
 * **Notebooks:** View the original Colab notebooks used to train the models.
 """
+)
+st.navigation(
+    [
+        st.Page("app.py", title="Home", icon="🏠"),
+        st.Page("pages/prediction.py", title="Run Prediction", icon="🖼️"),
+        st.Page("pages/grad_cam.py", title="Grad-CAM", icon="🔥"),
+        st.Page("pages/realtime.py", title="Real-Time Demo", icon="🎥"),
+        st.Page("pages/view_notebooks.py", title="Notebooks", icon="📓"),
+    ],
+    position="sidebar",
 )
