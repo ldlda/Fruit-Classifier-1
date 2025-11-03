@@ -1,6 +1,21 @@
 import streamlit as st
 
-st.set_page_config(page_title="Fruit Classifier - Home", layout="centered")
+st.set_page_config(
+    page_title="Fruit Classifier - Home",
+    layout="centered",
+    menu_items={
+        "About": """
+# group 45
+
+this is an awesome project made by our group.
+
+we have:
+- guy 1
+- guy 2
+- [Lương Đức Anh](//ldlda.com)
+    """
+    },
+)
 
 st.title("Fruit & Vegetable Classifier")
 
