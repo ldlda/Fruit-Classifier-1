@@ -6,8 +6,8 @@ from PIL import Image
 
 # Import all our helper functions from utils.py
 from utils import (
-    MODEL_CONFIG,
     IMAGE_EXTENSIONS,
+    MODEL_CONFIG,
     get_preprocess_fn,
     load_my_labels,
     load_my_model,

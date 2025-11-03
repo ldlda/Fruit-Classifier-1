@@ -3,8 +3,8 @@ import streamlit as st
 from PIL import Image
 
 from utils import (
-    MODEL_CONFIG,
     IMAGE_EXTENSIONS,
+    MODEL_CONFIG,
     generate_gradcam_overlay,
     get_preprocess_fn,
     load_my_labels,
