@@ -35,7 +35,7 @@ This is a deep learning web application built with Keras and Streamlit.
 
 ## Usage
 
-The application is run using Streamlit. The main entry point is `Home.py`.
+The application is run using Streamlit. The main entry point is `app.py`.
 
 1. Ensure virtual environment is activated.
 2. Run the command:
@@ -52,8 +52,4 @@ For a detailed breakdown of the methodology, model training, evaluation, and out
 
 [**Full Project Report (PDF)**](Group_45_Report.pdf)
 ---
-
-i LOVE stupid readmes
-
-## this is some image of usages
 
