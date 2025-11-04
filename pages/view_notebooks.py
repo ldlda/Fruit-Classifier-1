@@ -8,11 +8,6 @@ import streamlit.components.v1 as components
 from utils.notebook_rendering import render_notebook_to_html, render_notebook_to_pdf
 
 st.set_page_config(page_title="Project Notebooks", layout="wide")
-
-# Source .ipynb notebooks
-TRAIN_IPYNB = "notebooks/Fruit_Classification.ipynb"
-EVAL_IPYNB = "notebooks/Fruit_Classification_Inference.ipynb"
-
 st.title("Project Notebooks")
 st.write(
     "Use the selector to switch view between the training and evaluation notebooks."
@@ -26,10 +21,10 @@ choice = st.radio(
 )
 
 if choice == "Training":
-    notebook_path = TRAIN_IPYNB
+    notebook_path = TRAIN_NOTEBOOK_PATH
     st.subheader("Training Notebook")
 else:
-    notebook_path = EVAL_IPYNB
+    notebook_path = EVAL_NOTEBOOK_PATH
     st.subheader("Evaluation Notebook")
 
 with st.sidebar:
