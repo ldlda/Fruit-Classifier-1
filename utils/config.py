@@ -1,6 +1,8 @@
 # --- MODEL CONFIGURATION ---
 from typing import TypedDict
 
+__all__ = ["ModelConfig", "MODEL_CONFIG", "IMAGE_EXTENSIONS"]
+
 
 class ModelConfig(TypedDict):
     "model config shape"

@@ -1,16 +1,21 @@
 import json
+import time
 import typing
 
 import keras  # type: ignore[import]
 import streamlit as st
+
+__all__ = ["load_my_model", "load_my_labels"]
 
 # --- CACHED HELPER FUNCTIONS ---
 
 
 @st.cache_resource
 def load_my_model(model_path_in: str) -> keras.Model:
+    n = time.perf_counter()
     loaded_model = keras.models.load_model(model_path_in)
     assert loaded_model is not None
+    print(f"loaded {model_path_in} in {(time.perf_counter() - n) * 1000:.2f} ms")
     return typing.cast(keras.Model, loaded_model)
 
 

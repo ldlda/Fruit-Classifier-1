@@ -5,6 +5,7 @@ import tensorflow as tf
 from keras.models import Model  # type: ignore[import]
 from PIL import Image
 
+__all__ = ["generate_gradcam_overlay", "make_gradcam_heatmap"]
 # --- GRAD-CAM DISPLAY FUNCTION ---
 
 

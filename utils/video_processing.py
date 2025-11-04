@@ -9,9 +9,11 @@ import numpy as np
 from keras import Model  # type: ignore[import]
 from streamlit_webrtc import VideoProcessorBase
 
-from utils import get_preprocess_fn
 from utils.cache import load_my_labels, load_my_model
 from utils.config import MODEL_CONFIG
+from utils.preprocessing import get_preprocess_fn
+
+__all__ = ["FruitClassifierProcessor"]
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +24,8 @@ class FruitClassifierProcessor(VideoProcessorBase):
         # Initial defaults; the page will update these via setter methods.
         self.model_name = "MobileNetV2"
         self.model_config = MODEL_CONFIG[self.model_name]
-        self.model: Model = load_my_model(self.model_config["file"])
+        # Defer model load until first inference to speed up page init
+        self.model: Optional[Model] = None
         self.labels = load_my_labels()
         self.preprocess_fn = get_preprocess_fn(self.model_config["family"])
         self.size = self.model_config["size"]
@@ -36,6 +39,7 @@ class FruitClassifierProcessor(VideoProcessorBase):
         self._last_pred_label: Optional[str] = None
         self._last_pred_conf: Optional[float] = None
         self._last_processed_ts: float = 0.0
+        self._last_infer_ms: float = 0.0
 
         # Static ROI ("hitbox") as relative coords (x, y, w, h) in [0,1].
         # Defaults to centered 60% region.
@@ -63,7 +67,8 @@ class FruitClassifierProcessor(VideoProcessorBase):
         if name != self.model_name:
             self.model_name = name
             self.model_config = MODEL_CONFIG[self.model_name]
-            self.model = load_my_model(self.model_config["file"])
+            # Invalidate model so it loads lazily on next inference
+            self.model = None
             self.preprocess_fn = get_preprocess_fn(self.model_config["family"])
             self.size = self.model_config["size"]
 
@@ -125,6 +130,9 @@ class FruitClassifierProcessor(VideoProcessorBase):
     def _run_inference_once(self, img_bgr: np.ndarray) -> None:
         """Run one inference on the given frame and cache results."""
         now = time.perf_counter()
+        # Lazy model load
+        if self.model is None:
+            self.model = load_my_model(self.model_config["file"])  # type: ignore[assignment]
         h, w = img_bgr.shape[:2]
         rx, ry, rw, rh = self.roi_rel
         x0 = int(rx * w)
@@ -154,9 +162,7 @@ class FruitClassifierProcessor(VideoProcessorBase):
         self._last_pred_label = pred_label
         self._last_pred_conf = confidence
         self._last_processed_ts = time.time()
-        print(
-            f"damn: {((time.perf_counter() - now) * 1000):.4f} ms, funny counter = {self._funny_counter}"
-        )
+        self._last_infer_ms = (time.perf_counter() - now) * 1000.0
 
     def _inference_loop(self) -> None:
         """Background loop that processes the latest frame at the polling interval."""
@@ -175,17 +181,26 @@ class FruitClassifierProcessor(VideoProcessorBase):
             if latest is None:
                 time.sleep(0.005)
                 continue
-            try:
-                img_bgr = latest.to_ndarray(format="bgr24")
-                self._run_inference_once(img_bgr)
-            except Exception as e:  # pragma: no cover
-                logger.exception("Realtime inference failed: %s", e)
-                time.sleep(0.05)
+            img_bgr = latest.to_ndarray(format="bgr24")
+            self._run_inference_once(img_bgr)
 
     def _overlay_frame(self, frame: av.VideoFrame) -> av.VideoFrame:
         """Draw overlay using cached result on a copy of the given frame."""
         img_bgr = frame.to_ndarray(format="bgr24")
+        # Overlay ROI and diagnostics
         self._draw_overlay(img_bgr)
+        # Diagnostics: time since last inference and last inference ms
+        age_ms = (time.time() - self._last_processed_ts) * 1000.0
+        diag = f"dt={age_ms:.0f}ms, inf={self._last_infer_ms:.0f}ms"
+        cv2.putText(
+            img_bgr,
+            diag,
+            (10, 60),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.6,
+            (255, 255, 0),
+            2,
+        )
         return av.VideoFrame.from_ndarray(img_bgr, format="bgr24")
 
     async def recv_queued(self, frames: list[av.VideoFrame]) -> list[av.VideoFrame]:  # type: ignore[override]
@@ -223,8 +238,6 @@ class FruitClassifierProcessor(VideoProcessorBase):
     def on_ended(self):
         """Stop background worker when stream ends."""
         self._stop = True
-        try:
-            if hasattr(self, "_worker") and self._worker.is_alive():
-                self._worker.join(timeout=1.0)
-        except Exception:  # pragma: no cover
-            pass
+        worker = getattr(self, "_worker", None)
+        if worker is not None and worker.is_alive():
+            worker.join(timeout=1.0)
