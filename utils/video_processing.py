@@ -6,7 +6,7 @@ import av
 import cv2
 import numpy as np
 import streamlit.logger
-from keras import Model  # type: ignore[import]
+from keras import Model  # type: ignore[import-untyped]
 from streamlit_webrtc import VideoProcessorBase
 
 from utils.cache import load_my_labels, load_my_model

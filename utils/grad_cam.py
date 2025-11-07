@@ -1,8 +1,8 @@
 import cv2
 import numpy as np
 import numpy.typing as npt
-import tensorflow as tf  # type: ignore[import]
-from keras.models import Model  # type: ignore[import]
+import tensorflow as tf
+from keras.models import Model  # type: ignore[import-untyped]
 from PIL import Image
 
 __all__ = ["generate_gradcam_overlay", "make_gradcam_heatmap"]

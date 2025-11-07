@@ -3,6 +3,7 @@ import enum
 import re
 import sys
 from copy import deepcopy
+from functools import update_wrapper
 from pathlib import Path
 from typing import Callable, Optional
 
@@ -11,6 +12,7 @@ import nbformat
 import streamlit as st
 import streamlit.logger
 from nbconvert import HTMLExporter
+from traitlets.config import Config
 
 __all__ = [
     "render_notebook_to_html",
@@ -78,10 +80,18 @@ _logging_enabled: bool = False
 
 
 # giving up is real
+if sys.version_info <= (3, 12):
+    raise SyntaxError("ts code is 3.12+, get your runtime ready or bail.")
+
+
 def strategy_influenced[**P, R](
     s: Strategy, name: str
 ) -> "Callable[[Callable[P, R]], StrategyInfluenced[P, R]]":
-    return lambda f: StrategyInfluenced(s, name, f)
+    def function_wrapper(wrapped: Callable[P, R]) -> StrategyInfluenced[P, R]:
+        you = StrategyInfluenced(s, name, wrapped)
+        return you
+
+    return function_wrapper
 
 
 def _forced():
@@ -106,57 +116,83 @@ class MetaStrategyInfluenced(type):
 
 # how they do this typa decorator class thing so good
 class StrategyInfluenced[**P, R](metaclass=MetaStrategyInfluenced):
-    def __init__(self, s: Strategy, name: str, f: Callable[P, R]) -> None:
-        self._strat = s
-        self.name = name
+    "this thing BASICALLY just hooks some loggers and gates"
 
+    def __init__(self, s: Strategy, name: str, f: Callable[P, R]) -> None:
+        "ima influence f with some strategies"
+
+        # super().__init__(f)
+        self._self_strat = s
+        self._self_name = name
+
+        # self._self_f = f # also at self.__wrapped__
+
+        # _slef_ is because of wrapt.BaseObjectProxy you have to do that to not access the __wrapped__'s instead.
         def trying():
-            _debug_attempt(self.name, "try")
+            _debug_attempt(self._self_name, "try")
 
         def log_result(r: R):
-            _debug_attempt(self.name, "ok" if r is not None else "fail")
+            _debug_attempt(self._self_name, "ok" if r is not None else "fail")
 
         def log_fail(e: Exception):
-            logger.debug("%s failed: %s", self.name, e, stack_info=True)
-            return _debug_attempt(self.name, "fail")
+            logger.debug("%s failed: %s", self._self_name, e, stack_info=True)
+            return _debug_attempt(self._self_name, "fail")
 
-        self._start: Callable[[], None] = trying
-        self._success: Callable[[R], None] = log_result
-        self._fail: Callable[[Exception], None] = log_fail
-
-        self._f = f
+        self._self_start: Callable[[], None] = trying
+        self._self_success: Callable[[R], None] = log_result
+        self._self_fail: Callable[[Exception], None] = log_fail
 
         # Snapshots to allow restoring defaults
-        self._default_start = self._start
-        self._default_success = self._success
-        self._default_fail = self._fail
+        self._self_default_start = self._self_start
+        self._self_default_success = self._self_success
+        self._self_default_fail = self._self_fail
+        update_wrapper(self, f)
+        self.__wrapped__: Callable[P, R]
+
+    def __repr__(self) -> str:
+        return f"<{self.__class__.__qualname__} (0x{id(self):016X}) carrying {self.__wrapped__.__qualname__} (0x{id(self.__wrapped__):016X})>"
 
     @property
     def debug_start(self) -> Callable[[], None]:
-        return self._start
+        return self._self_start
 
     @debug_start.setter
     def debug_start(self, fn: Callable[[], None]) -> None:
         if fn is not None:
-            self._start = fn
+            self._self_start = fn
+
+    @debug_start.deleter
+    def debug_start(self) -> None:
+        del self._self_start
+        self._self_start = self._self_default_start
 
     @property
     def debug_end(self) -> Callable[[R], None]:
-        return self._success
+        return self._self_success
 
     @debug_end.setter
     def debug_end(self, fn: Callable[[R], None]) -> None:
         if fn is not None:
-            self._success = fn
+            self._self_success = fn
+
+    @debug_end.deleter
+    def debug_end(self) -> None:
+        del self._self_success
+        self._self_success = self._self_default_success
 
     @property
     def debug_fail(self) -> Callable[[Exception], None]:
-        return self._fail
+        return self._self_fail
 
     @debug_fail.setter
     def debug_fail(self, fn: Callable[[Exception], None]) -> None:
         if fn is not None:
-            self._fail = fn
+            self._self_fail = fn
+
+    @debug_fail.deleter
+    def debug_fail(self) -> None:
+        del self._self_fail
+        self._self_fail = self._self_default_fail
 
     # how cant i just use debug_end
     def bind_end(self, r: Callable[[R], None]):
@@ -173,25 +209,43 @@ class StrategyInfluenced[**P, R](metaclass=MetaStrategyInfluenced):
 
     # Clear/unbind helpers
     def clear_start(self) -> None:
-        self._start = self._default_start
+        del self.debug_start
 
     def clear_end(self) -> None:
-        self._success = self._default_success
+        del self.debug_end
 
     def clear_fail(self) -> None:
-        self._fail = self._default_fail
+        del self.debug_fail
 
     @property
     def function(self) -> Callable[P, R]:
-        return self._f
+        "access your big baboon here"
+        # return self._self_f
+        # return super().__wrapped__
+        return self.__wrapped__
+
+    # @function.setter
+    # def function(self, fn: Callable[P, R]):
+    #     if isinstance(fn, types.FunctionType):
+    #         super().__wrapper__ = fn
+    #         update_wrapper(self, fn)
+
+    # def bind_function(self, fn: Callable[P, R]) -> Callable[P, R]:
+    #     self.function = fn
+    #     return fn
 
     @property
     def strategy(self) -> Strategy:
-        return self._strat
+        return self._self_strat
+
+    @property
+    def name(self) -> str:
+        return self._self_name
 
     def __call__(self, *a: P.args, **k: P.kwargs) -> R | None:
+        "call function"
         # Use default strategy when not forced, but only log debug when forced
-        if not (StrategyInfluenced.effective_strategy & self.strategy):
+        if not StrategyInfluenced.effective_strategy & self.strategy:
             return None
         logging = StrategyInfluenced.logging
         if logging:
@@ -240,8 +294,6 @@ def _build_export_resources(path: str) -> dict:
 @strategy_influenced(Strategy.TEX, "TEX")
 def _export_pdf_via_tex(nb: nbformat.NotebookNode, resources: dict) -> Optional[bytes]:
     """Try exporting to PDF via LaTeX PDFExporter."""
-    from traitlets.config import Config
-
     c = Config()
     c.LatexPreprocessor.date = ""
     exporter: nbconvert.PDFExporter = nbconvert.PDFExporter(config=c)
@@ -255,7 +307,8 @@ def _export_pdf_via_tex(nb: nbformat.NotebookNode, resources: dict) -> Optional[
 def _tex_fail(e: Exception):
     if isinstance(e, nbconvert.exporters.pdf.LatexFailed):
         note = None
-        missing_re = re.compile(r"! LaTeX Error: File `([^']+)' not found\.")
+        re_pattern = r"! LaTeX Error: File `([^']+)' not found\."
+        missing_re = re.compile(re_pattern)
         for line in str(e.output).splitlines():
             m = missing_re.search(line)
             if m:

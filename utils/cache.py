@@ -2,7 +2,7 @@ import json
 import time
 import typing
 
-import keras  # type: ignore[import]
+import keras  # type: ignore[import-untyped]
 import streamlit as st
 
 __all__ = ["load_my_model", "load_my_labels"]

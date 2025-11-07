@@ -3,7 +3,7 @@
 
 from typing import Any, Callable
 
-import keras  # type: ignore[import]
+import keras  # type: ignore[import-untyped]
 import numpy as np
 from PIL import Image
 
