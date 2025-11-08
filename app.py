@@ -11,7 +11,7 @@ pages = [
     st.Page("pages/realtime.py", title="Real-Time Demo", icon="🎥"),
     st.Page("pages/view_notebooks.py", title="Notebooks", icon="📓"),
     st.Page("pages/help.py", title="Help", icon="🤓"),
-    # st.Page("pages/view_model.py", title="View models", icon="🤓"),
+    st.Page("pages/view_model.py", title="View models", icon="📊"),
 ]
 pg = st.navigation(pages, position="top")
 st.set_page_config(page_title="Fruit Classifier", page_icon=":apple:")
@@ -21,9 +21,13 @@ class malicious:
     def __init__(self, page: StreamlitPage):
         self.page = page
 
+    @staticmethod
+    def in_st():
+        return get_script_run_ctx(True) is not None
+
     def run(self):
         "run the app and then quit"
-        if get_script_run_ctx(True) is not None:
+        if self.in_st():
             self.page.run()
             st.stop()
 
