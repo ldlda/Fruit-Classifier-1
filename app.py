@@ -1,3 +1,5 @@
+# pyright: reportUnusedExpression=false
+# pylint: disable=pointless-statement
 import streamlit as st
 from streamlit.navigation.page import StreamlitPage
 from streamlit.runtime.scriptrunner import get_script_run_ctx
